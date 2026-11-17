@@ -1,6 +1,12 @@
 # Noline Blog
 
+![CI](https://github.com/qine233/noline-blog/actions/workflows/ci.yml/badge.svg)
+
 一个从零手写的博客引擎：**Node.js + Hono + SQLite**，自带主题系统，并复刻了 Noline（Typecho 主题）的设计与功能。除 `hono` 外，Markdown 渲染、模板引擎、密码哈希、会话、HTTP 桥接全部手写，没有 ORM、没有前端框架、没有构建工具链。
+
+![Noline 主题 · 首页](docs/screenshot-index.png)
+
+![Noline 主题 · 文章页](docs/screenshot-post.png)
 
 ## 技术栈
 
@@ -37,6 +43,7 @@
 | `src/routes/` | 公开路由、后台路由 |
 | `themes/` | 三套主题：`default` / `minimal` / `noline` |
 | `public/` | 后台样式 |
+| `docs/` | README 截图 |
 | `data/` | SQLite 数据文件（运行时生成，不入库） |
 
 ## 快速开始
@@ -48,6 +55,16 @@
 | 构建 | `npm run build` |
 | 生产运行 | `npm start` |
 | 首次使用 | 打开 `http://localhost:3000/admin/setup` 创建管理员 |
+
+## 部署
+
+| 方式 | 命令 |
+| --- | --- |
+| 本地生产 | `npm ci && npm run build && npm start` |
+| Docker 构建 | `docker build -t noline-blog .` |
+| Docker 运行 | `docker run -d -p 3000:3000 -v "$PWD/data":/app/data --name noline-blog noline-blog` |
+| 数据持久化 | 把宿主目录挂载到 `/app/data`（SQLite 文件与会话密钥都在这里，务必持久化） |
+| 端口 | 通过环境变量 `PORT` 调整，默认 `3000` |
 
 ## 主题
 

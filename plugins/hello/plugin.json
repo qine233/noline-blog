@@ -1,0 +1,9 @@
+{
+  "name": "问候页脚",
+  "version": "1.0.0",
+  "author": "you",
+  "description": "在每页页脚注入一行可配置的问候语，并在有新评论时打印日志（演示 body 钩子与 comment:created 事件）。",
+  "settings": [
+    { "key": "text", "label": "问候语", "type": "text", "default": "Hello from a plugin!" }
+  ]
+}

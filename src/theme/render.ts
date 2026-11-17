@@ -1,4 +1,5 @@
 import { escapeHtml } from '../lib/escape.js';
+import { runHook } from '../plugins/loader.js';
 import {
   countComments,
   countPosts,
@@ -88,6 +89,26 @@ function commonData(): Record<string, unknown> {
   };
 }
 
+// Inject plugin `head` / `body` hook output into the final HTML.
+function injectPluginHtml(
+  html: string,
+  type: string,
+  data: Record<string, unknown>,
+): string {
+  const base = {
+    type,
+    site: data.site,
+    post: data.post,
+    authed: data.authed,
+    escape: escapeHtml,
+  };
+  const head = runHook('head', base);
+  const body = runHook('body', base);
+  if (head) html = html.replace('</head>', head + '\n</head>');
+  if (body) html = html.replace('</body>', body + '\n</body>');
+  return html;
+}
+
 export function renderTemplate(
   name: string,
   input: Record<string, unknown> = {},
@@ -97,7 +118,8 @@ export function renderTemplate(
   if (!tpl) {
     return renderMessage('模板缺失', `主题「${dir}」缺少 ${name}.html`);
   }
-  return tpl({ ...commonData(), ...input });
+  const data = { ...commonData(), ...input };
+  return injectPluginHtml(tpl(data), name, data);
 }
 
 export function renderIndex(input: {
@@ -158,10 +180,9 @@ export function renderPost(input: {
 }
 
 export function renderMessage(title: string, message: string): string {
-  const dir = getActiveTheme();
-  const config = getThemeConfig(dir);
+  const config = getThemeConfig(getActiveTheme());
   const siteTitle = config.site_title || '我的博客';
-  return `<!doctype html>
+  const html = `<!doctype html>
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
@@ -178,4 +199,5 @@ export function renderMessage(title: string, message: string): string {
 </main>
 </body>
 </html>`;
+  return injectPluginHtml(html, 'message', {});
 }

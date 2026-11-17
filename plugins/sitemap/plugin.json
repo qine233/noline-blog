@@ -1,0 +1,7 @@
+{
+  "name": "站点地图",
+  "version": "1.0.0",
+  "author": "you",
+  "description": "提供 /sitemap.xml，列出首页与所有文章（演示插件扩展路由）。",
+  "settings": []
+}

@@ -30,6 +30,13 @@ import {
 } from '../theme/store.js';
 import { getThemeMeta, listThemes } from '../theme/loader.js';
 import type { ConfigField } from '../theme/loader.js';
+import { getPlugin, listPlugins, reloadPlugins } from '../plugins/loader.js';
+import {
+  getPluginSettings,
+  isPluginEnabled,
+  setPluginEnabled,
+  setPluginSettings,
+} from '../plugins/store.js';
 
 export const adminRoutes = new Hono<AppEnv>();
 
@@ -386,4 +393,64 @@ adminRoutes.post('/admin/themes/:dir/config', async (c) => {
   }
   setThemeConfig(dir, values);
   return c.redirect('/admin/themes');
+});
+
+// --- plugins ------------------------------------------------------------
+
+adminRoutes.get('/admin/plugins', (c) => {
+  const plugins = listPlugins();
+  const cards =
+    plugins
+      .map((p) => {
+        const on = isPluginEnabled(p.dir);
+        const config = getPluginSettings(p.dir, p.meta.settings);
+        const action = on
+          ? `<form method="post" action="/admin/plugins/${encodeURIComponent(p.dir)}/toggle" class="inline"><button type="submit" class="danger">停用</button></form>`
+          : `<form method="post" action="/admin/plugins/${encodeURIComponent(p.dir)}/toggle" class="inline"><button type="submit">启用</button></form>`;
+        const fields = on
+          ? `<form method="post" action="/admin/plugins/${encodeURIComponent(p.dir)}/config" class="plugin-config">${
+              p.meta.settings.map((f) => renderField(f, config[f.key] ?? f.default)).join('') ||
+              '<p class="muted">无配置项</p>'
+            }<button type="submit">保存设置</button></form>`
+          : '';
+        return `<div class="theme-card${on ? ' active' : ''}">
+  <div class="theme-head"><h3>${escapeHtml(p.meta.name)}${on ? ' <span class="badge-active">运行中</span>' : ''}</h3>${action}</div>
+  <p class="theme-meta">${escapeHtml(p.dir)} · v${escapeHtml(p.meta.version)} · ${escapeHtml(p.meta.author)}</p>
+  <p class="theme-desc">${escapeHtml(p.meta.description)}</p>
+  ${fields}
+</div>`;
+      })
+      .join('') || '<p class="empty">plugins/ 目录下没有插件。</p>';
+
+  const body = `<h1>插件管理</h1>
+<p class="muted">已安装 ${plugins.length} 个插件。启用后钩子与事件立即生效；插件自定义路由需重启服务生效。</p>
+<div class="theme-grid">${cards}</div>`;
+  return c.html(layout('插件管理', body, { authed: true }));
+});
+
+adminRoutes.post('/admin/plugins/:dir/toggle', async (c) => {
+  const dir = c.req.param('dir');
+  const p = getPlugin(dir);
+  if (!p) return c.redirect('/admin/plugins');
+  setPluginEnabled(dir, !isPluginEnabled(dir));
+  await reloadPlugins();
+  return c.redirect('/admin/plugins');
+});
+
+adminRoutes.post('/admin/plugins/:dir/config', async (c) => {
+  const dir = c.req.param('dir');
+  const p = getPlugin(dir);
+  if (!p) return c.redirect('/admin/plugins');
+  const form = await c.req.parseBody();
+  const values: Record<string, string> = {};
+  for (const f of p.meta.settings) {
+    if (f.type === 'checkbox') values[f.key] = form[f.key] ? 'true' : 'false';
+    else {
+      const v = form[f.key];
+      values[f.key] = v === undefined || v === null ? '' : String(v);
+    }
+  }
+  setPluginSettings(dir, values);
+  await reloadPlugins();
+  return c.redirect('/admin/plugins');
 });

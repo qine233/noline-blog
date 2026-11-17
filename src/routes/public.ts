@@ -16,6 +16,7 @@ import type { AppEnv } from '../types.js';
 import { SESSION_COOKIE, verifySession } from '../auth.js';
 import { markdownToHtml } from '../lib/markdown.js';
 import { getActiveTheme, getThemeConfig } from '../theme/store.js';
+import { emitEvent } from '../plugins/loader.js';
 import { renderIndex, renderMessage, renderPost } from '../theme/render.js';
 import type { RenderedComment, RenderedPost } from '../theme/render.js';
 
@@ -27,7 +28,6 @@ function isAuthed(c: Context): boolean {
   return Boolean(token && verifySession(token));
 }
 
-// SQLite datetime('now') is "YYYY-MM-DD HH:MM:SS" (UTC); show the date part.
 function formatDate(s: string): string {
   return s.slice(0, 10);
 }
@@ -105,6 +105,11 @@ publicRoutes.get('/post/:slug', (c) => {
     return c.html(renderMessage('未找到', '这篇文章不存在。'), 404);
   }
   incrementViews(post.id);
+  emitEvent('post:viewed', {
+    postId: post.id,
+    slug: post.slug,
+    category: post.category,
+  });
 
   const comments: RenderedComment[] = listComments(post.id).map((cm) => ({
     author: cm.author,
@@ -159,6 +164,7 @@ publicRoutes.post('/post/:slug/comment', async (c) => {
     return c.redirect(`${postUrl(slug)}#comments`);
   }
   createComment(post.id, author, content);
+  emitEvent('comment:created', { postId: post.id, author });
   return c.redirect(`${postUrl(slug)}#comments`);
 });
 

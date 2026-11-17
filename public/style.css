@@ -462,3 +462,12 @@ input[type="color"] {
   height: 44px;
   padding: 4px;
 }
+
+.plugin-config {
+  margin-top: 0.85rem;
+  padding-top: 0.85rem;
+  border-top: 1px solid var(--line);
+}
+.plugin-config button {
+  margin-top: 0.3rem;
+}

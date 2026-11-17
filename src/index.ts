@@ -2,7 +2,6 @@ import { createServer } from 'node:http';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { Readable } from 'node:stream';
 import { existsSync, readFileSync } from 'node:fs';
-import { getActiveTheme } from './theme/store.js';
 import path from 'node:path';
 import { Hono } from 'hono';
 import type { AppEnv } from './types.js';
@@ -10,11 +9,16 @@ import { publicRoutes } from './routes/public.js';
 import { adminRoutes } from './routes/admin.js';
 import { userCount } from './db.js';
 import { layout } from './render.js';
+import { getActiveTheme } from './theme/store.js';
+import { reloadPlugins } from './plugins/loader.js';
 
 const app = new Hono<AppEnv>();
 
 app.route('/', publicRoutes);
 app.route('/', adminRoutes);
+
+// Load enabled plugins before serving; this also mounts their routes.
+await reloadPlugins(app);
 
 // Admin stylesheet is read once at startup; theme CSS is read per request so
 // switching themes, or editing a theme, takes effect immediately.

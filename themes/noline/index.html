@@ -1,0 +1,70 @@
+{{> header}}
+<div class="site-hero">
+  <div class="site-hero-inner">
+    {{#if config.avatar_url}}<img class="site-hero-avatar" src="{{config.avatar_url}}" alt="" width="136" height="136">{{/if}}
+    <h1 class="site-hero-title">{{config.author_name}}</h1>
+    {{#if site.tagline}}<p class="site-hero-bio">{{site.tagline}}</p>{{/if}}
+  </div>
+  <div class="hero-lip"></div>
+</div>
+<div class="container">
+  <div class="grid-layout">
+    <div class="main-content feed">
+      {{#if config.show_announcement}}{{#if config.announcement}}
+      <div class="card card-widget notice-card">
+        <div class="card-header">公告</div>
+        <div class="notice-body"><div class="notice-text">{{config.announcement}}</div></div>
+      </div>
+      {{/if}}{{/if}}
+
+      {{#if archiveTitle}}<div class="archive-header"><h1>{{archiveTitle}}</h1></div>{{/if}}
+
+      {{#if catNav.length}}
+      <div class="feed-cats">
+        <a class="cat-pill" href="/">全部</a>
+        {{#each catNav}}
+        <a class="cat-pill{{#if this.active}} active{{/if}}" href="{{this.url}}">{{this.name}}<span class="cat-count">{{this.count}}</span></a>
+        {{/each}}
+      </div>
+      {{/if}}
+
+      {{#each posts}}
+      <article class="card post-card">
+        {{#if this.cover}}<a class="post-cover" href="{{this.url}}" tabindex="-1" aria-hidden="true"><img src="{{this.cover}}" alt="" loading="lazy"></a>{{/if}}
+        <div class="post-card-body">
+          <div class="post-header">
+            {{#if config.avatar_url}}<img class="avatar" src="{{config.avatar_url}}" alt="" width="40" height="40" loading="lazy">{{/if}}
+            <div class="header-text">
+              <div class="author-name">{{config.author_name}}</div>
+              <div class="post-meta">
+                <span class="meta-item"><time>{{this.date}}</time></span>
+                {{#if this.category}}<a class="category-tag" href="/?cat={{this.category}}">{{this.category}}</a>{{/if}}
+                {{#if this.readMinutes}}<span class="meta-item">约 {{this.readMinutes}} 分钟</span>{{/if}}
+              </div>
+            </div>
+          </div>
+          <h2 class="post-title"><a class="post-title-link" href="{{this.url}}">{{this.title}}</a></h2>
+          <div class="post-excerpt">{{this.excerpt}}</div>
+          <div class="post-footer">
+            <span class="stat-item">阅读 {{this.views}}</span>
+            <a class="stat-item" href="{{this.url}}#comments">评论 {{this.commentCount}}</a>
+            <a class="read-more" href="{{this.url}}">阅读全文 →</a>
+          </div>
+        </div>
+      </article>
+      {{else}}
+      <div class="card"><div class="empty-state"><p class="empty-state-text">这里还什么都没有，先去写点什么吧。</p></div></div>
+      {{/each}}
+
+      {{#if showPager}}
+      <nav class="page-navigator">
+        {{#if hasPrev}}<a class="page-link" href="{{prevUrl}}">上一页</a>{{/if}}
+        {{#each pages}}<a class="page-link{{#if this.current}} current{{/if}}" href="{{this.url}}">{{this.n}}</a>{{/each}}
+        {{#if hasNext}}<a class="page-link" href="{{nextUrl}}">下一页</a>{{/if}}
+      </nav>
+      {{/if}}
+    </div>
+    {{> sidebar}}
+  </div>
+</div>
+{{> footer}}

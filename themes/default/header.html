@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{site.title}}</title>
+<link rel="stylesheet" href="/theme.css">
+<style>:root{ --accent: {{config.accent}}; }</style>
+</head>
+<body>
+<header class="site-header">
+  <div class="wrap">
+    <div class="branding">
+      <a class="brand" href="/">{{site.title}}</a>
+      {{#if config.show_tagline}}{{#if site.tagline}}<p class="tagline">{{site.tagline}}</p>{{/if}}{{/if}}
+    </div>
+    <nav class="site-nav">
+      <a href="/">首页</a>
+      {{#if authed}}<a href="/admin">后台</a><form method="post" action="/admin/logout" class="inline"><button type="submit" class="linklike">退出</button></form>{{else}}<a href="/admin/login">登录</a>{{/if}}
+    </nav>
+  </div>
+</header>
+<main class="wrap main">

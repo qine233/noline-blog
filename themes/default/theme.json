@@ -1,0 +1,13 @@
+{
+  "name": "暖阳",
+  "version": "1.0.0",
+  "author": "you",
+  "description": "暖色温、安静的阅读主题。卡片式文章列表，琥珀色点缀。",
+  "config": [
+    { "key": "site_title", "label": "站点标题", "type": "text", "default": "我的博客" },
+    { "key": "tagline", "label": "副标题", "type": "text", "default": "记录与思考" },
+    { "key": "accent", "label": "主题色", "type": "color", "default": "#b45309" },
+    { "key": "footer_text", "label": "页脚文字", "type": "text", "default": "手写轮子的博客引擎" },
+    { "key": "show_tagline", "label": "显示副标题", "type": "checkbox", "default": "true" }
+  ]
+}

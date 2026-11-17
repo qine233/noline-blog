@@ -1,0 +1,14 @@
+{
+  "name": "极简",
+  "version": "1.0.0",
+  "author": "you",
+  "description": "白纸黑字，衬线标题，大留白。专注文字本身的极简主题。",
+  "config": [
+    { "key": "site_title", "label": "站点标题", "type": "text", "default": "笔记" },
+    { "key": "tagline", "label": "副标题", "type": "text", "default": "少即是多" },
+    { "key": "accent", "label": "强调色", "type": "color", "default": "#1a1a1a" },
+    { "key": "footer_text", "label": "页脚文字", "type": "text", "default": "写下来的，才是想清楚的" },
+    { "key": "show_tagline", "label": "显示副标题", "type": "checkbox", "default": "true" },
+    { "key": "show_date", "label": "显示日期", "type": "checkbox", "default": "true" }
+  ]
+}

@@ -1,0 +1,54 @@
+<aside class="sidebar">
+  {{#if post}}
+  <div class="card card-widget sidebar-toc" id="sidebar-toc" hidden>
+    <div class="card-header">目录</div>
+    <nav class="toc-content" aria-label="文章目录"><ol class="toc-list" id="toc-list"></ol></nav>
+  </div>
+  {{/if}}
+
+  <div class="card card-widget">
+    <div class="card-header">近期评论</div>
+    <div class="rcomment-list">
+      {{#each recentComments}}
+      <a class="rcomment-item" href="{{this.url}}">
+        <span class="rcomment-main">
+          <span class="rcomment-head"><span class="rcomment-author">{{this.author}}</span><span class="rcomment-time">{{this.date}}</span></span>
+          <span class="rcomment-bubble">{{this.excerpt}}</span>
+        </span>
+      </a>
+      {{else}}
+      <p class="empty-sm">还没有评论。</p>
+      {{/each}}
+    </div>
+  </div>
+
+  {{#if tags.length}}
+  <div class="card card-widget">
+    <div class="card-header">标签</div>
+    <div class="tags-container">
+      {{#each tags}}<a class="tag" href="/?s={{this.name}}" title="{{this.name}}（{{this.count}}）">{{this.name}}<span class="tag-count">{{this.count}}</span></a>{{/each}}
+    </div>
+  </div>
+  {{/if}}
+
+  {{#if categories.length}}
+  <div class="card card-widget">
+    <div class="card-header">分类</div>
+    <div class="archive-list">
+      {{#each categories}}<a class="archive-item" href="/?cat={{this.name}}"><span class="archive-item-title">{{this.name}}</span><span class="archive-item-meta">{{this.count}}</span></a>{{/each}}
+    </div>
+  </div>
+  {{/if}}
+
+  <div class="sidebar-sticky">
+    <div class="card card-widget">
+      <div class="card-header">站点信息</div>
+      <div class="site-stats">
+        <span class="site-stat">文章<b>{{stats.postCount}}</b></span>
+        <span class="site-stat">评论<b>{{stats.commentCount}}</b></span>
+        <span class="site-stat">分类<b>{{stats.categoryCount}}</b></span>
+        <span class="site-stat">运行<b>{{stats.days}} 天</b></span>
+      </div>
+    </div>
+  </div>
+</aside>

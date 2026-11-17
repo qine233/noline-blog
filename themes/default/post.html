@@ -1,0 +1,25 @@
+{{> header}}
+<article class="post">
+  <h1>{{post.title}}</h1>
+  <time class="post-time">{{post.date}}</time>
+  <div class="post-content">{{{post.content}}}</div>
+</article>
+<section class="comments" id="comments">
+  <h2>评论</h2>
+  <ul class="comment-list">
+  {{#each comments}}
+    <li class="comment">
+      <div class="comment-meta"><strong>{{this.author}}</strong> · <time>{{this.date}}</time></div>
+      <p>{{this.content}}</p>
+    </li>
+  {{else}}
+    <li class="empty">暂无评论。</li>
+  {{/each}}
+  </ul>
+  <form method="post" action="{{post.url}}/comment" class="comment-form">
+    <input name="author" placeholder="昵称" required maxlength="40">
+    <textarea name="content" placeholder="说点什么…" required maxlength="2000"></textarea>
+    <button type="submit">发表评论</button>
+  </form>
+</section>
+{{> footer}}

@@ -1,0 +1,11 @@
+{{> header}}
+{{#each posts}}
+<article class="post-card">
+  <h2><a href="{{this.url}}">{{this.title}}</a></h2>
+  <time>{{this.date}}</time>
+  <p>{{this.excerpt}}</p>
+</article>
+{{else}}
+<p class="empty">还没有文章，去后台写第一篇吧。</p>
+{{/each}}
+{{> footer}}

@@ -1,0 +1,77 @@
+{{> header}}
+<div class="container">
+  <div class="grid-layout">
+    <div class="main-content">
+      <div class="post-hero{{#if post.cover}} has-cover{{/if}}">
+        {{#if post.cover}}<div class="post-hero-cover" style="background-image:url('{{post.cover}}')"></div>{{/if}}
+        <div class="post-hero-info">
+          {{#if post.category}}<div class="post-hero-top"><a class="category-tag" href="/?cat={{post.category}}">{{post.category}}</a></div>{{/if}}
+          <h1 class="post-hero-title">{{post.title}}</h1>
+          <div class="post-hero-meta">
+            <span class="meta-pill is-plain"><time>{{post.date}}</time></span>
+            <span class="meta-pill is-plain">阅读 {{post.views}}</span>
+            {{#if post.readMinutes}}<span class="meta-pill is-plain">约 {{post.readMinutes}} 分钟</span>{{/if}}
+            <a class="meta-pill" href="#comments">评论 {{post.commentCount}}</a>
+          </div>
+        </div>
+      </div>
+
+      <article class="card article-card">
+        <div class="post-content">{{{post.content}}}</div>
+        <div class="post-copyright">
+          {{#if config.avatar_url}}<img class="post-copyright-avatar" src="{{config.avatar_url}}" alt="">{{/if}}
+          <p class="post-copyright-name">{{config.author_name}}</p>
+          {{#if site.tagline}}<p class="post-copyright-desc">{{site.tagline}}</p>{{/if}}
+          <div class="post-copyright-badges"><span class="post-copyright-badge">转载请注明出处</span></div>
+        </div>
+        {{#if post.tags.length}}
+        <div class="post-tags">
+          {{#each post.tags}}<a class="tag" href="/?s={{this}}">#{{this}}</a>{{/each}}
+        </div>
+        {{/if}}
+      </article>
+
+      <nav class="article-nav">
+        <div class="article-nav-dock">
+          {{#if prev}}<a class="article-nav-cell article-nav-prev" href="{{prev.url}}"><span class="article-nav-label">上一篇</span><span class="article-nav-title">{{prev.title}}</span></a>{{/if}}
+          {{#if next}}<a class="article-nav-cell article-nav-next" href="{{next.url}}"><span class="article-nav-label">下一篇</span><span class="article-nav-title">{{next.title}}</span></a>{{/if}}
+        </div>
+      </nav>
+
+      {{#if related.length}}
+      <section class="related">
+        <h2 class="related-headline">相关文章</h2>
+        <div class="related-list">
+          {{#each related}}
+          <a class="related-item" href="{{this.url}}">
+            {{#if this.cover}}<span class="related-cover" style="background-image:url('{{this.cover}}')"></span>{{/if}}
+            <span class="related-text"><span class="related-title">{{this.title}}</span><span class="related-date">{{this.date}}</span></span>
+          </a>
+          {{/each}}
+        </div>
+      </section>
+      {{/if}}
+
+      <section class="comments" id="comments">
+        <h2>评论</h2>
+        <div class="comment-list">
+          {{#each comments}}
+          <div class="comment">
+            <div class="comment-meta"><span class="c-author">{{this.author}}</span><span class="dot"></span><time>{{this.date}}</time></div>
+            <p>{{this.content}}</p>
+          </div>
+          {{else}}
+          <p class="empty-sm">暂无评论，来说两句。</p>
+          {{/each}}
+        </div>
+        <form method="post" action="{{post.url}}/comment" class="comment-form">
+          <input name="author" placeholder="昵称" required maxlength="40">
+          <textarea name="content" placeholder="说点什么…" required maxlength="2000"></textarea>
+          <button type="submit">发表评论</button>
+        </form>
+      </section>
+    </div>
+    {{> sidebar}}
+  </div>
+</div>
+{{> footer}}

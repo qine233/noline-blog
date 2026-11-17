@@ -1,0 +1,95 @@
+<footer class="site-footer">
+  <div class="site-footer-note">
+    <p>© {{year}} {{site.title}}</p>
+    <p>{{config.footer_text}} · <a href="/feed.xml">RSS</a></p>
+  </div>
+</footer>
+<button type="button" class="back-top" id="back-top" aria-label="回到顶部">↑</button>
+<div class="lightbox" id="lightbox" hidden>
+  <button type="button" class="lightbox-close" aria-label="关闭"></button>
+  <img class="lightbox-img" src="" alt="">
+</div>
+<script>
+(function(){
+  var el=document.documentElement;
+  var vt=!!window.__nolineVT;
+  var bar=document.getElementById('noline-progress');
+  var reduce=false;try{reduce=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;}catch(e){}
+
+  // Reveal the first-frame-hidden content (non-VT branch).
+  el.classList.remove('is-loading');
+
+  // Arriving from a soft navigation: push the bar 70% -> 100% then fade.
+  var arriving=false;
+  try{arriving=sessionStorage.getItem('noline-nav')==='1';sessionStorage.removeItem('noline-nav');}catch(e){}
+  if(bar&&!reduce&&arriving){
+    bar.style.transform='scaleX(0.7)';bar.classList.add('is-active');
+    requestAnimationFrame(function(){requestAnimationFrame(function(){
+      bar.style.transform='scaleX(1)';
+      setTimeout(function(){bar.classList.remove('is-active');setTimeout(function(){bar.style.transform='scaleX(0)';},300);},200);
+    });});
+  }
+
+  var tb=document.querySelector('.js-theme-toggle');
+  if(tb){tb.addEventListener('click',function(){var n=el.getAttribute('data-theme')==='dark'?'light':'dark';el.setAttribute('data-theme',n);try{localStorage.setItem('noline-theme',n);}catch(e){}});}
+
+  var top=document.getElementById('back-top');
+  if(top){var on=function(){top.classList.toggle('is-visible',window.scrollY>420);};window.addEventListener('scroll',on,{passive:true});on();top.addEventListener('click',function(){window.scrollTo({top:0,behavior:'smooth'});});}
+
+  var content=document.querySelector('.post-content');
+  var list=document.getElementById('toc-list'),tocBox=document.getElementById('sidebar-toc');
+  if(content&&list&&tocBox){
+    var hs=content.querySelectorAll('h2,h3');
+    if(hs.length>=2){
+      var idx=0;
+      hs.forEach(function(h){
+        if(!h.id){h.id='sec-'+(++idx);}
+        var li=document.createElement('li');
+        li.className='toc-item toc-'+h.tagName.toLowerCase();
+        var a=document.createElement('a');
+        a.href='#'+h.id;a.textContent=h.textContent;
+        li.appendChild(a);list.appendChild(li);
+      });
+      tocBox.hidden=false;
+    }
+  }
+
+  var lb=document.getElementById('lightbox');
+  if(lb&&content){
+    var lbImg=lb.querySelector('.lightbox-img');
+    var close=function(){lb.hidden=true;lbImg.src='';el.style.overflow='';};
+    content.addEventListener('click',function(e){var t=e.target;if(t&&t.tagName==='IMG'){e.preventDefault();lbImg.src=t.src;lb.hidden=false;el.style.overflow='hidden';}});
+    lb.querySelector('.lightbox-close').addEventListener('click',close);
+    lb.addEventListener('click',function(e){if(e.target===lb)close();});
+    document.addEventListener('keydown',function(e){if(e.key==='Escape'&&!lb.hidden)close();});
+  }
+
+  var search=document.querySelector('.topbar-search input');
+  if(search){document.addEventListener('keydown',function(e){var tag=(document.activeElement&&document.activeElement.tagName)||'';if(tag==='INPUT'||tag==='TEXTAREA')return;if(e.key==='/'||((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==='k')){e.preventDefault();search.focus();}});}
+
+  // Soft navigation (non-VT fallback): fade out + progress bar, then native nav.
+  if(!vt&&!reduce){
+    document.addEventListener('click',function(e){
+      if(e.defaultPrevented||e.button!==0||e.metaKey||e.ctrlKey||e.shiftKey||e.altKey)return;
+      var a=e.target;
+      while(a&&a.tagName!=='A')a=a.parentElement;
+      if(!a)return;
+      if(a.target&&a.target!==''&&a.target!=='_self')return;
+      if(a.hasAttribute('download'))return;
+      var href=a.getAttribute('href');
+      if(!href||href.charAt(0)==='#')return;
+      if(/^(mailto:|tel:|javascript:)/i.test(href))return;
+      var url;try{url=new URL(a.href,location.href);}catch(err){return;}
+      if(url.origin!==location.origin)return;
+      if(url.pathname===location.pathname&&url.search===location.search)return;
+      e.preventDefault();
+      try{sessionStorage.setItem('noline-nav','1');}catch(err){}
+      if(bar){bar.style.transform='scaleX(0.7)';bar.classList.add('is-active');}
+      el.classList.add('is-leaving');
+      setTimeout(function(){location.assign(url.href);},220);
+    });
+  }
+})();
+</script>
+</body>
+</html>

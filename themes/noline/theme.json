@@ -1,0 +1,17 @@
+{
+  "name": "Noline",
+  "version": "1.0.0",
+  "author": "粥粥",
+  "description": "复刻团子笔记的扁平蓝灰风格：1px 发丝线分层、蓝紫强调色、卡片式文章流与右侧栏。",
+  "config": [
+    { "key": "site_title", "label": "站点标题", "type": "text", "default": "团子笔记" },
+    { "key": "author_name", "label": "作者名", "type": "text", "default": "粥粥" },
+    { "key": "tagline", "label": "一句话介绍", "type": "text", "default": "种一棵树，等它长大" },
+    { "key": "avatar_url", "label": "头像地址", "type": "text", "default": "https://www.zhouzhou.work/usr/uploads/noline_avatar/3bdda191fed3d4cd737eabbf949497ce.jpg" },
+    { "key": "announcement", "label": "公告内容", "type": "textarea", "default": "主题更新中" },
+    { "key": "show_announcement", "label": "显示公告", "type": "checkbox", "default": "true" },
+    { "key": "accent", "label": "强调色", "type": "color", "default": "#425aef" },
+    { "key": "github_url", "label": "GitHub 链接", "type": "text", "default": "https://github.com/qine233/NoLine" },
+    { "key": "footer_text", "label": "页脚文字", "type": "text", "default": "主题 Noline · 由手写引擎驱动" }
+  ]
+}

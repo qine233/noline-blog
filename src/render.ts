@@ -10,7 +10,7 @@ export function layout(
   opts?: { authed?: boolean },
 ): string {
   const nav = opts?.authed
-    ? `<a href="/">首页</a><a href="/admin">文章</a><a href="/admin/themes">主题</a><a href="/admin/plugins">插件</a><form method="post" action="/admin/logout" class="inline"><button type="submit">退出</button></form>`
+    ? `<a href="/">首页</a><a href="/admin">文章</a><a href="/admin/themes">主题</a><a href="/admin/plugins">插件</a><a href="/admin/import">导入</a><form method="post" action="/admin/logout" class="inline"><button type="submit">退出</button></form>`
     : `<a href="/">首页</a>`;
 
   return `<!doctype html>

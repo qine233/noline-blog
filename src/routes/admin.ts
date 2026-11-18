@@ -8,10 +8,13 @@ import {
   getPostById,
   getPostBySlug,
   getUserByUsername,
+  importComment,
+  importPost,
   listPosts,
   updatePost,
   userCount,
 } from '../db.js';
+import { parseTypechoDump } from '../import/typecho.js';
 import type { Post } from '../db.js';
 import {
   hashPassword,
@@ -453,4 +456,82 @@ adminRoutes.post('/admin/plugins/:dir/config', async (c) => {
   setPluginSettings(dir, values);
   await reloadPlugins();
   return c.redirect('/admin/plugins');
+});
+
+// --- import -------------------------------------------------------------
+
+adminRoutes.get('/admin/import', (c) => {
+  const body = `<h1>导入 Typecho 数据</h1>
+<p class="muted">上传用 <code>mysqldump</code> 导出的 .sql 文件，需包含 typecho_contents / typecho_comments / typecho_metas / typecho_relationships 表。将导入已发布文章（Markdown 正文）、分类、标签与已审核评论。</p>
+<form method="post" action="/admin/import" enctype="multipart/form-data" class="auth-form">
+  <label>Typecho 数据库导出（.sql）<input type="file" name="file" accept=".sql,text/plain,application/sql" required></label>
+  <button type="submit">开始导入</button>
+</form>
+<p class="muted">导出命令：<code>mysqldump -u root -p 数据库名 &gt; typecho.sql</code></p>`;
+  return c.html(layout('导入 Typecho', body, { authed: true }));
+});
+
+adminRoutes.post('/admin/import', async (c) => {
+  const form = await c.req.parseBody();
+  const file = form.file;
+  if (!file || typeof file === 'string') {
+    return c.html(
+      layout('导入 Typecho', '<p class="error">请选择 .sql 文件</p><p><a href="/admin/import">返回</a></p>', { authed: true }),
+      400,
+    );
+  }
+  if (file.size > 40 * 1024 * 1024) {
+    return c.html(
+      layout('导入 Typecho', '<p class="error">文件过大（上限 40MB）</p><p><a href="/admin/import">返回</a></p>', { authed: true }),
+      400,
+    );
+  }
+
+  let parsed;
+  try {
+    parsed = parseTypechoDump(await file.text());
+  } catch (err) {
+    console.error('[import] parse failed', err);
+    return c.html(
+      layout('导入 Typecho', '<p class="error">解析失败，请确认这是 mysqldump 导出的 Typecho 数据库</p><p><a href="/admin/import">返回</a></p>', { authed: true }),
+      400,
+    );
+  }
+
+  const idMap = new Map<number, number>();
+  let postCount = 0;
+  for (const p of parsed.posts) {
+    const id = importPost({
+      title: p.title,
+      slug: p.slug,
+      content: p.content,
+      category: p.category,
+      tags: p.tags,
+      created_at: p.createdAt,
+    });
+    idMap.set(p.cid, id);
+    postCount++;
+  }
+  let commentCount = 0;
+  for (const cm of parsed.comments) {
+    const pid = idMap.get(cm.cid);
+    if (!pid) continue;
+    importComment(pid, cm.author, cm.content, cm.createdAt);
+    commentCount++;
+  }
+
+  const catCount = parsed.posts.filter((p) => p.category).length;
+  const tagCount = parsed.posts.reduce(
+    (n, p) => n + (p.tags ? p.tags.split(',').length : 0),
+    0,
+  );
+  const body = `<h1>导入完成</h1>
+<div class="card card-widget"><div class="site-stats" style="grid-template-columns:repeat(4,1fr)">
+  <span class="site-stat">文章<b>${postCount}</b></span>
+  <span class="site-stat">评论<b>${commentCount}</b></span>
+  <span class="site-stat">带分类<b>${catCount}</b></span>
+  <span class="site-stat">标签<b>${tagCount}</b></span>
+</div></div>
+<p style="margin-top:1rem"><a class="btn" href="/">回到首页</a></p>`;
+  return c.html(layout('导入完成', body, { authed: true }));
 });

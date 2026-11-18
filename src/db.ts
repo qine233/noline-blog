@@ -327,3 +327,36 @@ export function earliestPostCreated(): string | undefined {
   };
   return row?.m ?? undefined;
 }
+
+// Insertion helpers for the Typecho importer: allow an explicit created_at
+// and de-duplicate the slug so re-imports never collide.
+export function importPost(p: {
+  title: string;
+  slug: string;
+  content: string;
+  category: string;
+  tags: string;
+  created_at: string;
+}): number {
+  let slug = p.slug;
+  if (getPostBySlug(slug)) {
+    slug = `${slug}-${Date.now().toString(36)}`;
+  }
+  const r = db
+    .prepare(
+      'INSERT INTO posts (title, slug, content, category, tags, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
+    )
+    .run(p.title, slug, p.content, p.category, p.tags, p.created_at, p.created_at);
+  return Number(r.lastInsertRowid);
+}
+
+export function importComment(
+  postId: number,
+  author: string,
+  content: string,
+  createdAt: string,
+): void {
+  db.prepare(
+    'INSERT INTO comments (post_id, author, content, created_at) VALUES (?, ?, ?, ?)',
+  ).run(postId, author, content, createdAt);
+}

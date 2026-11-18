@@ -29,6 +29,7 @@
 | 评论 | 提交与展示、近期评论 |
 | 主题 | 目录即主题、后台一键切换、每主题独立配置项、暗色模式 |
 | 插件 | 目录即插件、钩子注入 HTML、生命周期事件、扩展路由、后台启停与配置 |
+| 迁移 | 导入 Typecho（mysqldump）文章、分类、标签、评论 |
 | 体验 | 暗色/浅色切换、返回顶部、软跳转（View Transitions 优先，降级淡出 + 进度条） |
 | 其他 | RSS `/feed.xml`、站点统计、脏数据安全迁移 |
 
@@ -44,6 +45,7 @@
 | `src/routes/` | 公开路由、后台路由 |
 | `themes/` | 三套主题：`default` / `minimal` / `noline` |
 | `plugins/` | 插件目录：`hello` / `sitemap` |
+| `src/import/` | Typecho SQL dump 解析 |
 | `public/` | 后台样式 |
 | `docs/` | README 截图 |
 | `data/` | SQLite 数据文件（运行时生成，不入库） |
@@ -100,6 +102,22 @@
 | --- | --- |
 | `hello` | 页脚注入可配置问候语；监听 `comment:created` 打印日志 |
 | `sitemap` | 扩展 `/sitemap.xml`，列出首页与所有文章 |
+
+## 导入 Typecho 数据
+
+后台「导入」页上传 `mysqldump` 导出的 `.sql`，自动解析导入（无需 MySQL 服务）：
+
+| 导入项 | 映射 |
+| --- | --- |
+| `typecho_contents`（`type=post`、`status=publish`） | 文章：标题、slug、Markdown 正文（去 `<!--markdown-->`）、发布时间 |
+| `typecho_metas` + `typecho_relationships` | 首个分类 → 文章分类；标签 → 文章标签 |
+| `typecho_comments`（`status=approved`） | 评论：作者、内容、时间 |
+| 独立页面 / 草稿 / 未审核评论 | 跳过 |
+
+| 步骤 | 命令 / 说明 |
+| --- | --- |
+| 导出 | `mysqldump -u root -p 数据库名 > typecho.sql` |
+| 导入 | 后台「导入」页上传该 `.sql`，页内显示导入篇数 |
 
 ## 许可
 

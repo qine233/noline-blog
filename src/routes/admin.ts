@@ -14,7 +14,7 @@ import {
   updatePost,
   userCount,
 } from '../db.js';
-import { parseTypechoDump } from '../import/typecho.js';
+import { parseTypechoFile } from '../import/typecho.js';
 import type { Post } from '../db.js';
 import {
   hashPassword,
@@ -462,12 +462,12 @@ adminRoutes.post('/admin/plugins/:dir/config', async (c) => {
 
 adminRoutes.get('/admin/import', (c) => {
   const body = `<h1>导入 Typecho 数据</h1>
-<p class="muted">上传用 <code>mysqldump</code> 导出的 .sql 文件，需包含 typecho_contents / typecho_comments / typecho_metas / typecho_relationships 表。将导入已发布文章（Markdown 正文）、分类、标签与已审核评论。</p>
+<p class="muted">支持 Typecho 后台导出的 <code>.bin</code> 备份（JSON，可能 gzip 压缩），或 <code>mysqldump</code> 导出的 <code>.sql</code>，上传后自动识别格式。将导入已发布文章（Markdown 正文）、分类、标签与已审核评论。</p>
 <form method="post" action="/admin/import" enctype="multipart/form-data" class="auth-form">
-  <label>Typecho 数据库导出（.sql）<input type="file" name="file" accept=".sql,text/plain,application/sql" required></label>
+  <label>Typecho 备份文件（.bin / .sql）<input type="file" name="file" accept=".bin,.sql,application/octet-stream,text/plain" required></label>
   <button type="submit">开始导入</button>
 </form>
-<p class="muted">导出命令：<code>mysqldump -u root -p 数据库名 &gt; typecho.sql</code></p>`;
+<p class="muted">或者：<code>mysqldump -u root -p 数据库名 &gt; typecho.sql</code></p>`;
   return c.html(layout('导入 Typecho', body, { authed: true }));
 });
 
@@ -489,11 +489,11 @@ adminRoutes.post('/admin/import', async (c) => {
 
   let parsed;
   try {
-    parsed = parseTypechoDump(await file.text());
+    parsed = parseTypechoFile(new Uint8Array(await file.arrayBuffer()));
   } catch (err) {
     console.error('[import] parse failed', err);
     return c.html(
-      layout('导入 Typecho', '<p class="error">解析失败，请确认这是 mysqldump 导出的 Typecho 数据库</p><p><a href="/admin/import">返回</a></p>', { authed: true }),
+      layout('导入 Typecho', '<p class="error">解析失败，请确认这是 Typecho 的 .bin 备份或 mysqldump 导出的 .sql</p><p><a href="/admin/import">返回</a></p>', { authed: true }),
       400,
     );
   }

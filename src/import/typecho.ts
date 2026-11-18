@@ -1,7 +1,10 @@
-// Parse a Typecho mysqldump export and map it to this blog's model.
-// Only standard mysqldump output is supported (INSERT ... VALUES with the
-// tables typecho_contents / typecho_comments / typecho_metas /
-// typecho_relationships). No MySQL server required.
+import { gunzipSync } from 'node:zlib';
+
+// Parse a Typecho export. Supports:
+//  - mysqldump .sql (CREATE TABLE + INSERT)
+//  - Typecho backup .bin written as JSON (optionally gzip-compressed)
+// The .bin format is what Typecho's admin backup produces: a JSON document
+// (or gzip of one) holding contents / comments / metas / relationships.
 
 export interface ImportedPost {
   cid: number;
@@ -14,7 +17,7 @@ export interface ImportedPost {
 }
 
 export interface ImportedComment {
-  cid: number; // post cid this comment belongs to
+  cid: number;
   author: string;
   content: string;
   createdAt: string;
@@ -31,8 +34,127 @@ interface Table {
   rows: Row[];
 }
 
-export function parseTypechoDump(sql: string): ParseResult {
-  const tables = parseDump(sql);
+// Entry point: feed it raw file bytes or text; it sniffs the format.
+export function parseTypechoFile(input: string | Uint8Array): ParseResult {
+  let text: string;
+  if (typeof input === 'string') {
+    text = input;
+  } else {
+    const buf = Buffer.from(input);
+    if (buf.length > 2 && buf[0] === 0x1f && buf[1] === 0x8b) {
+      try {
+        text = gunzipSync(buf).toString('utf8');
+      } catch {
+        text = buf.toString('utf8');
+      }
+    } else {
+      text = buf.toString('utf8');
+    }
+  }
+  text = text.replace(/^\uFEFF/, '');
+
+  if (/CREATE\s+TABLE|INSERT\s+INTO/i.test(text)) {
+    return parseTypechoDump(text);
+  }
+
+  const obj = tryParseJson(text);
+  if (obj !== null) return parseTypechoJson(obj);
+
+  throw new Error('Unrecognized Typecho export format');
+}
+
+// --- JSON (.bin) ----------------------------------------------------------
+
+function tryParseJson(text: string): unknown | null {
+  const t = text.trim();
+  try {
+    return JSON.parse(t);
+  } catch {
+    /* fall through */
+  }
+  const braceStart = t.indexOf('{');
+  const braceEnd = t.lastIndexOf('}');
+  if (braceStart >= 0 && braceEnd > braceStart) {
+    try {
+      return JSON.parse(t.slice(braceStart, braceEnd + 1));
+    } catch {
+      /* fall through */
+    }
+  }
+  const arrStart = t.indexOf('[');
+  const arrEnd = t.lastIndexOf(']');
+  if (arrStart >= 0 && arrEnd > arrStart) {
+    try {
+      return JSON.parse(t.slice(arrStart, arrEnd + 1));
+    } catch {
+      /* fall through */
+    }
+  }
+  return null;
+}
+
+function firstArray(obj: Record<string, unknown>, keys: string[]): Row[] | null {
+  for (const k of keys) {
+    const v = obj[k];
+    if (Array.isArray(v)) return v as Row[];
+  }
+  return null;
+}
+
+function parseTypechoJson(obj: unknown): ParseResult {
+  if (Array.isArray(obj)) {
+    const t = new Map<string, Table>();
+    t.set('typecho_contents', { columns: [], rows: obj as Row[] });
+    return mapTables(t);
+  }
+  if (typeof obj !== 'object' || obj === null) {
+    throw new Error('Unrecognized JSON');
+  }
+  const root = obj as Record<string, unknown>;
+  const t = new Map<string, Table>();
+  const contents = firstArray(root, ['contents', 'posts', 'articles']);
+  const comments = firstArray(root, ['comments']);
+  const metas = firstArray(root, ['metas', 'categories', 'tags']);
+  const rels = firstArray(root, ['relationships', 'relations', 'postMetas']);
+  if (contents) t.set('typecho_contents', { columns: [], rows: contents });
+  if (comments) t.set('typecho_comments', { columns: [], rows: comments });
+  if (metas) t.set('typecho_metas', { columns: [], rows: metas });
+  if (rels) t.set('typecho_relationships', { columns: [], rows: rels });
+  return mapTables(t);
+}
+
+// --- SQL (mysqldump) ------------------------------------------------------
+
+function parseTypechoDump(sql: string): ParseResult {
+  return mapTables(parseDump(sql));
+}
+
+// --- mapping to this blog's model -----------------------------------------
+
+function get(row: Row, names: string[]): unknown {
+  for (const n of names) {
+    const v = row[n];
+    if (v !== undefined && v !== null) return v;
+  }
+  return undefined;
+}
+
+function num(v: unknown): number {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : 0;
+}
+
+function createdAtOf(v: unknown): string {
+  if (typeof v === 'number' && v > 0) return tsToDate(v);
+  if (typeof v === 'string') {
+    if (/^\d+$/.test(v.trim())) return tsToDate(Number(v));
+    const t = Date.parse(v);
+    if (!Number.isNaN(t)) return new Date(t).toISOString().slice(0, 19).replace('T', ' ');
+  }
+  return tsToDate(NaN);
+}
+
+function mapTables(tables: Map<string, Table>): ParseResult {
   const contents = tables.get('typecho_contents')?.rows ?? [];
   const comments = tables.get('typecho_comments')?.rows ?? [];
   const metas = tables.get('typecho_metas')?.rows ?? [];
@@ -40,16 +162,16 @@ export function parseTypechoDump(sql: string): ParseResult {
 
   const metaById = new Map<number, { name: string; type: string }>();
   for (const m of metas) {
-    metaById.set(Number(m.mid), {
-      name: String(m.name ?? ''),
-      type: String(m.type ?? ''),
+    metaById.set(num(get(m, ['mid', 'id', 'metaId'])), {
+      name: String(get(m, ['name', 'title', 'slug']) ?? ''),
+      type: String(get(m, ['type', 'kind']) ?? ''),
     });
   }
 
   const postMetas = new Map<number, number[]>();
   for (const r of rels) {
-    const cid = Number(r.cid);
-    const mid = Number(r.mid);
+    const cid = num(get(r, ['cid', 'postId', 'post_id']));
+    const mid = num(get(r, ['mid', 'metaId', 'tagId', 'categoryId']));
     if (!postMetas.has(cid)) postMetas.set(cid, []);
     postMetas.get(cid)!.push(mid);
   }
@@ -57,13 +179,22 @@ export function parseTypechoDump(sql: string): ParseResult {
   const posts: ImportedPost[] = [];
   const publishedCids = new Set<number>();
   for (const c of contents) {
-    if (String(c.type) !== 'post') continue;
-    if (String(c.status) !== 'publish') continue;
-    const cid = Number(c.cid);
+    const type = String(get(c, ['type', 'postType']) ?? 'post');
+    if (type && type !== 'post') continue;
+    const status = String(get(c, ['status', 'state']) ?? 'publish');
+    if (status && status !== 'publish') continue;
+
+    const cid = num(get(c, ['cid', 'id', 'postId']));
     publishedCids.add(cid);
-    let slug = String(c.slug ?? '').trim();
+
+    let slug = String(get(c, ['slug', 'path', 'name']) ?? '').trim();
     if (!/^[a-z0-9-]+$/i.test(slug)) slug = 'post-' + cid;
-    const content = String(c.text ?? '').replace(/^\s*<!--markdown-->\s*/, '');
+
+    const content = String(get(c, ['text', 'content', 'body']) ?? '').replace(
+      /^\s*<!--markdown-->\s*/,
+      '',
+    );
+
     const mids = postMetas.get(cid) ?? [];
     let category = '';
     const tags: string[] = [];
@@ -73,29 +204,50 @@ export function parseTypechoDump(sql: string): ParseResult {
       if (meta.type === 'category' && !category) category = meta.name;
       else if (meta.type === 'tag') tags.push(meta.name);
     }
+
+    // Some exports embed category/tags directly on the content row.
+    if (!category) {
+      const rc = get(c, ['category']);
+      if (rc !== undefined) category = String(rc);
+    }
+    const rt = get(c, ['tags']);
+    if (rt !== undefined) {
+      if (Array.isArray(rt)) {
+        for (const x of rt) tags.push(String(x));
+      } else {
+        tags.push(
+          ...String(rt)
+            .split(/[,，]/)
+            .map((s) => s.trim())
+            .filter(Boolean),
+        );
+      }
+    }
+
     posts.push({
       cid,
-      title: String(c.title ?? '').trim() || '(无标题)',
+      title: String(get(c, ['title', 'name']) ?? '').trim() || '(无标题)',
       slug,
       content,
       category,
-      tags: tags.join(','),
-      createdAt: tsToDate(Number(c.created)),
+      tags: Array.from(new Set(tags)).join(','),
+      createdAt: createdAtOf(get(c, ['created', 'createdAt', 'date', 'time'])),
     });
   }
 
   const outComments: ImportedComment[] = [];
   for (const cm of comments) {
-    if (String(cm.status) !== 'approved') continue;
-    const type = String(cm.type ?? 'comment');
+    const status = String(get(cm, ['status', 'state']) ?? 'approved');
+    if (status !== 'approved') continue;
+    const type = String(get(cm, ['type']) ?? 'comment');
     if (type !== 'comment') continue;
-    const cid = Number(cm.cid);
-    if (!publishedCids.has(cid)) continue;
+    const cid = num(get(cm, ['cid', 'postId', 'post_id']));
+    if (publishedCids.size > 0 && !publishedCids.has(cid)) continue;
     outComments.push({
       cid,
-      author: String(cm.author ?? '').trim() || '匿名',
-      content: String(cm.text ?? ''),
-      createdAt: tsToDate(Number(cm.created)),
+      author: String(get(cm, ['author', 'name']) ?? '').trim() || '匿名',
+      content: String(get(cm, ['text', 'content']) ?? ''),
+      createdAt: createdAtOf(get(cm, ['created', 'createdAt', 'date', 'time'])),
     });
   }
 
@@ -258,7 +410,6 @@ function parseTuples(s: string): unknown[][] {
         if (/^null$/i.test(tok)) vals.push(null);
         else if (tok === '') vals.push('');
         else if (/^-?\d+(\.\d+)?$/.test(tok)) vals.push(Number(tok));
-        else if (/^0x[0-9a-f]+$/i.test(tok)) vals.push(tok);
         else vals.push(tok);
       }
       skipWs();

@@ -37,6 +37,26 @@ app.get('/theme.css', (c) => {
   return c.text(body, 200, { 'Content-Type': 'text/css; charset=utf-8' });
 });
 
+app.get('/uploads/:name', (c) => {
+  const name = c.req.param('name');
+  if (!/^[A-Za-z0-9._-]+$/.test(name)) return c.text('Not Found', 404);
+  const file = path.join(process.cwd(), 'public', 'uploads', name);
+  if (!existsSync(file)) return c.text('Not Found', 404);
+  const ext = path.extname(name).toLowerCase();
+  const types: Record<string, string> = {
+    '.jpg': 'image/jpeg',
+    '.jpeg': 'image/jpeg',
+    '.png': 'image/png',
+    '.gif': 'image/gif',
+    '.webp': 'image/webp',
+    '.svg': 'image/svg+xml',
+    '.avif': 'image/avif',
+  };
+  return c.body(readFileSync(file), 200, {
+    'Content-Type': types[ext] || 'application/octet-stream',
+  });
+});
+
 app.get('/healthz', (c) => c.text('ok'));
 
 app.notFound((c) =>

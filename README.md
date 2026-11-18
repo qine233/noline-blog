@@ -30,6 +30,7 @@
 | 主题 | 目录即主题、后台一键切换、每主题独立配置项、暗色模式 |
 | 插件 | 目录即插件、钩子注入 HTML、生命周期事件、扩展路由、后台启停与配置 |
 | 迁移 | 导入 Typecho（mysqldump）文章、分类、标签、评论 |
+| 图片 | 上传到 OneDrive / Cloudreve（v3/v4），编辑器插入 |
 | 体验 | 暗色/浅色切换、返回顶部、软跳转（View Transitions 优先，降级淡出 + 进度条） |
 | 其他 | RSS `/feed.xml`、站点统计、脏数据安全迁移 |
 
@@ -46,6 +47,7 @@
 | `themes/` | 三套主题：`default` / `minimal` / `noline` |
 | `plugins/` | 插件目录：`hello` / `sitemap` |
 | `src/import/` | Typecho SQL dump 解析 |
+| `src/storage/` | 图片存储驱动（OneDrive / Cloudreve / 本地测试） |
 | `public/` | 后台样式 |
 | `docs/` | README 截图 |
 | `data/` | SQLite 数据文件（运行时生成，不入库） |
@@ -123,6 +125,18 @@
 | --- | --- |
 | 取文件 | Typecho 后台导出 `.bin`，或用 `mysqldump` 导出 `.sql` |
 | 导入 | 后台「导入」页上传，页内显示导入篇数 |
+
+## 图片上传
+
+后台「上传」页配置存储位置，文章编辑器可「插入图片」，上传后自动插入 Markdown 图片语法。图片不落服务器本机。
+
+| 存储 | 说明 |
+| --- | --- |
+| OneDrive | Microsoft Graph：填 tenant / client_id / client_secret / refresh_token / 文件夹 |
+| Cloudreve | v4（默认）或 v3；填地址 / 账号 / 密码 / 目录（v3 可填存储策略 ID） |
+| 本地 | 仅测试用（存 `public/uploads/`） |
+
+配置后点「测试当前存储连接」验证凭据。OneDrive 需一次授权获取 `refresh_token`（Graph 的 `Files.ReadWrite offline_access`）。
 
 ## 许可
 

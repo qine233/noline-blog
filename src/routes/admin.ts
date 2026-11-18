@@ -15,6 +15,13 @@ import {
   userCount,
 } from '../db.js';
 import { parseTypechoFile } from '../import/typecho.js';
+import {
+  getStorageConfig,
+  setStorageConfig,
+  testStorage,
+  uploadFile,
+} from '../storage/index.js';
+import type { StorageDriverName } from '../storage/types.js';
 import type { Post } from '../db.js';
 import {
   hashPassword,
@@ -107,9 +114,36 @@ ${error ? `<p class="error">${escapeHtml(error)}</p>` : ''}
   <label>分类<input name="category" value="${escapeHtml(category)}" placeholder="如：生活记录"></label>
   <label>标签（逗号分隔）<input name="tags" value="${escapeHtml(tags)}" placeholder="如：typecho, 主题"></label>
   <label>封面图地址（可选）<input name="cover" value="${escapeHtml(cover)}" placeholder="https://..."></label>
+  <div class="editor-toolbar"><label class="upload-btn">插入图片<input type="file" accept="image/*" id="img-upload" hidden></label><span class="upload-hint" id="img-status"></span></div>
   <label>内容（Markdown）<textarea name="content" required rows="20">${escapeHtml(content)}</textarea></label>
   <button type="submit">保存</button>
-</form>`;
+</form>
+<script>
+(function(){
+  var input=document.getElementById('img-upload');
+  var ta=document.querySelector('.editor-form textarea[name="content"]');
+  var status=document.getElementById('img-status');
+  if(!input||!ta) return;
+  input.addEventListener('change',function(){
+    var f=input.files&&input.files[0]; if(!f) return;
+    status.textContent='上传中…';
+    var fd=new FormData(); fd.append('file',f);
+    fetch('/admin/upload',{method:'POST',body:fd,credentials:'same-origin'})
+      .then(function(r){return r.json();})
+      .then(function(j){
+        if(j.url){
+          var md='!['+(j.name||'图片')+']('+j.url+')\n';
+          var s=ta.selectionStart||0, e=ta.selectionEnd||0, v=ta.value;
+          ta.value=v.slice(0,s)+md+v.slice(e);
+          ta.selectionStart=ta.selectionEnd=s+md.length;
+          ta.focus(); status.textContent='已插入';
+        } else { status.textContent='失败：'+(j.error||'未知'); }
+      })
+      .catch(function(err){ status.textContent='失败：'+err; });
+    input.value='';
+  });
+})();
+</script>`;
 }
 
 function slugError(slug: string): string | null {
@@ -534,4 +568,100 @@ adminRoutes.post('/admin/import', async (c) => {
 </div></div>
 <p style="margin-top:1rem"><a class="btn" href="/">回到首页</a></p>`;
   return c.html(layout('导入完成', body, { authed: true }));
+});
+
+// --- storage / upload ---------------------------------------------------
+
+adminRoutes.get('/admin/storage', (c) => {
+  const cfg = getStorageConfig();
+  const msg = c.req.query('msg') ?? '';
+  const drv = cfg.driver;
+  const sel = (v: string) => (drv === v ? ' selected' : '');
+  const body = `<h1>图片上传</h1>
+<p class="muted">选择图片存放位置。上传的图片插入文章正文，不会存到服务器本机（本地仅作测试）。</p>
+${msg ? `<p class="error">${escapeHtml(msg)}</p>` : ''}
+<form method="post" action="/admin/storage" class="auth-form">
+  <label>存储方式
+    <select name="driver">
+      <option value="none"${sel('none')}>未启用</option>
+      <option value="onedrive"${sel('onedrive')}>OneDrive（Microsoft Graph）</option>
+      <option value="cloudreve"${sel('cloudreve')}>Cloudreve</option>
+      <option value="local"${sel('local')}>本地（仅测试）</option>
+    </select>
+  </label>
+  <fieldset><legend>OneDrive</legend>
+    <label>tenant（common / consumers / organizations / 租户 ID）<input name="od_tenant" value="${escapeHtml(cfg.onedrive.tenant)}"></label>
+    <label>Client ID<input name="od_clientId" value="${escapeHtml(cfg.onedrive.clientId)}"></label>
+    <label>Client Secret<input type="password" name="od_clientSecret" value="${escapeHtml(cfg.onedrive.clientSecret)}"></label>
+    <label>Refresh Token<input type="password" name="od_refreshToken" value="${escapeHtml(cfg.onedrive.refreshToken)}"></label>
+    <label>上传文件夹<input name="od_folder" value="${escapeHtml(cfg.onedrive.folder)}"></label>
+  </fieldset>
+  <fieldset><legend>Cloudreve</legend>
+    <label>API 版本
+      <select name="cr_version">
+        <option value="v4"${cfg.cloudreve.apiVersion === 'v4' ? ' selected' : ''}>v4</option>
+        <option value="v3"${cfg.cloudreve.apiVersion === 'v3' ? ' selected' : ''}>v3</option>
+      </select>
+    </label>
+    <label>地址<input name="cr_baseUrl" value="${escapeHtml(cfg.cloudreve.baseUrl)}" placeholder="https://pan.example.com"></label>
+    <label>邮箱 / 用户名<input name="cr_email" value="${escapeHtml(cfg.cloudreve.email)}"></label>
+    <label>密码<input type="password" name="cr_password" value="${escapeHtml(cfg.cloudreve.password)}"></label>
+    <label>上传目录<input name="cr_dir" value="${escapeHtml(cfg.cloudreve.dir)}"></label>
+    <label>v3 存储策略 ID（v3 可选，留空自动查）<input name="cr_policyId" value="${escapeHtml(cfg.cloudreve.policyId)}"></label>
+  </fieldset>
+  <button type="submit">保存</button>
+</form>
+<form method="post" action="/admin/storage/test" class="inline" style="margin-top:.6rem"><button type="submit" class="danger">测试当前存储连接</button></form>`;
+  return c.html(layout('图片上传', body, { authed: true }));
+});
+
+adminRoutes.post('/admin/storage', async (c) => {
+  const f = await c.req.parseBody();
+  const driver = (String(f.driver) || 'none') as StorageDriverName;
+  const cfg = {
+    driver,
+    onedrive: {
+      tenant: String(f.od_tenant ?? 'common') || 'common',
+      clientId: String(f.od_clientId ?? ''),
+      clientSecret: String(f.od_clientSecret ?? ''),
+      refreshToken: String(f.od_refreshToken ?? ''),
+      folder: String(f.od_folder ?? 'Blog') || 'Blog',
+    },
+    cloudreve: {
+      apiVersion: (f.cr_version === 'v3' ? 'v3' : 'v4') as 'v3' | 'v4',
+      baseUrl: String(f.cr_baseUrl ?? ''),
+      email: String(f.cr_email ?? ''),
+      password: String(f.cr_password ?? ''),
+      dir: String(f.cr_dir ?? '/') || '/',
+      policyId: String(f.cr_policyId ?? ''),
+    },
+  };
+  setStorageConfig(cfg);
+  return c.redirect('/admin/storage');
+});
+
+adminRoutes.post('/admin/storage/test', async (c) => {
+  let msg: string;
+  try {
+    msg = await testStorage(getStorageConfig());
+  } catch (err: any) {
+    msg = '失败：' + (err?.message ?? String(err));
+  }
+  return c.redirect('/admin/storage?msg=' + encodeURIComponent(msg));
+});
+
+adminRoutes.post('/admin/upload', async (c) => {
+  const form = await c.req.parseBody();
+  const file = form.file;
+  if (!file || typeof file === 'string') return c.json({ error: '没有文件' }, 400);
+  const mime = file.type || '';
+  if (!mime.startsWith('image/')) return c.json({ error: '只支持图片' }, 400);
+  if (file.size > 10 * 1024 * 1024) return c.json({ error: '图片不能超过 10MB' }, 400);
+  try {
+    const data = Buffer.from(await file.arrayBuffer());
+    const url = await uploadFile({ name: file.name || 'image', data, mime });
+    return c.json({ url, name: file.name });
+  } catch (err: any) {
+    return c.json({ error: err?.message ?? String(err) }, 500);
+  }
 });
